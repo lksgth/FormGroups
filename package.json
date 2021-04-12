@@ -2,10 +2,13 @@
   "name": "private_projects",
   "version": "1.0.0",
   "description": "Inspired by Angular, the plugin validates form data and handles error state on the frontend.",
-  "main": "index.ts",
+  "main": "src/formgroups.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsc --project ./"
   },
   "author": "Lukas Gueth",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "typescript": "^4.2.4"
+  }
 }
