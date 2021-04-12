@@ -2,7 +2,7 @@ interface RegexObject {
   [key: string]: RegExp;
 }
 
-abstract class Validator {
+abstract class Validators {
   constructor() {}
   /**
    * @param  {number} length
@@ -110,8 +110,9 @@ class FormControl {
   private _valid: boolean = true;
 
   /**
-   * @param  {string} name
-   * @param  {{} | {}[]} validators optional. Pass in a Validator (e.g.: Validator.email)
+   * @typedef {Validators} validators
+   * @param  {string} name HTMLAttribute: formControl="name"
+   * @param  {Validators} validators optional. Pass in a Validator (e.g.: Validator.email)
    * @param  {string} HTMLElementTag optional. Supported tags: input | textarea | select
    * @description Handles the state of the HTMLElement. Adds CSS classes for visual feedback (invalid: .invalid, valid: .valid)
    */
@@ -132,6 +133,7 @@ class FormControl {
     if (HTMLElementTag) this._HTMLElementTag = HTMLElementTag;
     this._element = this.getHTMLElementForSettingType();
   }
+
   /**
    * @returns supportedElementTypes
    */
@@ -146,18 +148,25 @@ class FormControl {
     }
   }
   /**
+   * @param  {Event} e
+   * @returns void
+   */
+  protected getInputData(e: Event): void {
+    const target = e.target as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | HTMLSelectElement;
+    this._value = target.value;
+  }
+
+  /**
    * @returns void
    */
   protected addListeners(): void {
-    this._element.addEventListener("keyup", (e) => {
-      const target = e.target as
-        | HTMLInputElement
-        | HTMLTextAreaElement
-        | HTMLSelectElement;
-      this._value = target.value;
-      this.udpateValueAndValidity();
-    });
+    this._element.addEventListener("keyup", (e) => this.getInputData(e));
+    this._element.addEventListener("blur", () => this.udpateValueAndValidity());
   }
+
   /**
    * @returns void
    */
@@ -172,30 +181,53 @@ class FormControl {
       this._element.classList.add("invalid");
     }
   }
+
   /**
    * @returns void
    */
   public udpateValueAndValidity(): void {
-    const regexes = Object.entries(this._regexObject).map(
-      (entry) => entry[1] as RegExp
-    );
-    regexes.forEach((regex) => {
-      this._valid = regex.test(this._value);
+    const entries = Object.entries(this._regexObject);
+    let regexName: string, regex: RegExp, value: string;
+    entries.forEach((entry) => {
+      regexName = entry[0];
+      regex = entry[1] as RegExp;
+      switch (regexName) {
+        case "iban":
+          value = this._value.replaceAll(" ", "");
+          break;
+        default:
+          value = this._value;
+      }
+      this._valid = regex.test(value);
+      this.updateDOMElement();
     });
-    this.updateDOMElement();
   }
+
   /**
    * @returns string
    */
   public get name(): string {
     return this._name;
   }
+
   /**
    * @returns string
    */
   public get HTMLElementTag(): string {
     return this._HTMLElementTag;
   }
+
+  /**
+   * @returns string
+   */
+  public get value(): string {
+    return this._value;
+  }
+
+  public get valid(): boolean {
+    return this._valid;
+  }
+
   /**
    * @param  {supportedElementTypes} element
    */
@@ -205,20 +237,35 @@ class FormControl {
   }
 }
 
-interface controls {
+interface Controls {
   [key: string]: FormControl;
+}
+
+/**
+ * @typedef {Object.<string, string>} FormData
+ */
+interface FormGroupData {
+  [key: string]: string;
 }
 
 class FormGroup {
   protected supportedElementTags = ["input", "textarea", "select"];
 
-  private _controls: controls;
+  private _controls: Controls;
+  private _name: string;
+  private _element!: HTMLFormElement;
+  private _onSubmitCallback!: (formData: FormGroupData) => void;
   /**
-   * @param  {controls} controls
+   * @typedef {Object.<string, FormControl>} Controls - e.g.: { email: new FormControl("email", Validators.email)}
+   * @param {name} name HTMLAttribute: formGroup="name"
+   * @param {Controls} controls
    */
-  constructor(controls: controls) {
+  constructor(name: string, controls: Controls) {
+    this._name = name;
     this._controls = controls;
 
+    this.getFormElement();
+    this.addListeners();
     this.validateFormControls();
   }
   /**
@@ -233,13 +280,61 @@ class FormGroup {
         throw "Unsupported HTMLElement!";
 
       element = document.querySelector(
-        `${tag}[formControlName="${control.name}"]`
+        `${tag}[formControl="${control.name}"]`
       ) as HTMLElement;
       if (!element)
-        throw `Couldn't find HTMLElement with FormControl "${control.name}"`;
+        throw `Couldn't find supported HTMLElement with formControl="${control.name}"!`;
       control._DOMElement = element as any;
     });
   }
+
+  /**
+   * @returns void
+   */
+  protected getFormElement(): void {
+    const element = document.querySelector(`form[formGroup="${this._name}"]`);
+    if (!element)
+      throw `Couldn't find HTMLFormElement with attribute formGroup="${this._name}"!`;
+    this._element = element as HTMLFormElement;
+  }
+  /**
+   * @returns void
+   */
+  protected getData(): FormGroupData {
+    let data: FormGroupData = {};
+    const controlNames = Object.keys(this._controls);
+    let control: FormControl;
+    controlNames.forEach((name) => {
+      control = this._controls[name];
+      control.udpateValueAndValidity();
+      if (!control.valid) throw `FormControl ${name} is invalid!`;
+      data[name] = this._controls[name].value;
+    });
+    return data;
+  }
+
+  /**
+   * @returns void
+   * @description Adds "submit" EventListener to the FormElement;
+   */
+  protected addListeners(): void {
+    this._element!.addEventListener("submit", (e) => {
+      e.preventDefault();
+      try {
+        const data = this.getData();
+        this._onSubmitCallback(data);
+      } catch (error) {}
+    });
+  }
+  /**
+   * @param  {(data:FormGroupData)=>void} callbackFn
+   * @returns void
+   * @description The FormGroup adds an EventListener ("submit") to the HTMLFormElement. The callback function will be triggered on the submit event of the form.
+   */
+  public onSubmit(callbackFn: (data: FormGroupData) => void): void {
+    this._onSubmitCallback = callbackFn;
+  }
+
   /**
    * @returns FormControl
    */
