@@ -274,6 +274,8 @@ class FormGroup {
   private _name: string;
   private _element!: HTMLFormElement;
   private _onSubmitCallback!: (formData: FormGroupData) => void;
+  private _onErrorCallback!: (invalidControls: Controls) => void;
+  private _invalidControls!: Controls;
 
   /**
    * @typedef {Object.<string, FormControl>} Controls - e.g.: { email: new FormControl("email", Validators.email)}
@@ -326,10 +328,11 @@ class FormGroup {
     let data: FormGroupData = {};
     const controlNames = Object.keys(this._controls);
     let control: FormControl;
+    this._invalidControls = {};
     controlNames.forEach((name) => {
       control = this._controls[name];
       control.udpateValueAndValidity();
-      if (!control.valid) throw `FormControl ${name} is invalid!`;
+      if (!control.valid) this._invalidControls[name] = control;
       data[name] = this._controls[name].value;
     });
     return data;
@@ -344,7 +347,12 @@ class FormGroup {
       e.preventDefault();
       try {
         const data = this.getData();
-        this._onSubmitCallback(data);
+        if (!this._onSubmitCallback)
+          console.warn("No onSubmit callback function!");
+        else if (Object.keys(this._invalidControls).length > 0)
+          if (this._onErrorCallback)
+            this._onErrorCallback(this._invalidControls);
+          else if (this._onSubmitCallback) this._onSubmitCallback(data);
       } catch (error) {}
     });
   }
@@ -354,8 +362,12 @@ class FormGroup {
    * @returns void
    * @description The FormGroup adds an EventListener ("submit") to the HTMLFormElement. The callback function will be triggered on the submit event of the form.
    */
-  public onSubmit(callbackFn: (data: FormGroupData) => void): void {
+  public onSubmit(
+    callbackFn: (data: FormGroupData) => void,
+    errorCallbackFn: (invalidControls: Controls) => void
+  ): void {
     this._onSubmitCallback = callbackFn;
+    this._onErrorCallback = errorCallbackFn;
   }
 
   /**
