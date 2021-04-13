@@ -4,6 +4,7 @@ interface RegexObject {
 
 abstract class Validators {
   constructor() {}
+
   /**
    * @param  {number} length
    * @returns RegexObject
@@ -13,6 +14,7 @@ abstract class Validators {
       minLength: new RegExp(`^.{${length},}$`),
     };
   }
+
   /**
    * @param  {number} length
    * @returns RegexObject
@@ -22,6 +24,7 @@ abstract class Validators {
       maxLength: new RegExp(`^.{0,${length}}$`),
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -30,6 +33,7 @@ abstract class Validators {
       personName: /^[A-ZÄÖÜ]([A-Za-zÄÖÜäöüß]+(\-| )?)*[a-zäöüß]$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -38,6 +42,7 @@ abstract class Validators {
       email: /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -46,6 +51,7 @@ abstract class Validators {
       phonenumber: /^\+[1-9]{1}[0-9]{3,14}$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -54,6 +60,7 @@ abstract class Validators {
       iban: /^(?:(?:IT|SM)\d{2}[A-Z]\d{22}|CY\d{2}[A-Z]\d{23}|NL\d{2}[A-Z]{4}\d{10}|LV\d{2}[A-Z]{4}\d{13}|(?:BG|BH|GB|IE)\d{2}[A-Z]{4}\d{14}|GI\d{2}[A-Z]{4}\d{15}|RO\d{2}[A-Z]{4}\d{16}|KW\d{2}[A-Z]{4}\d{22}|MT\d{2}[A-Z]{4}\d{23}|NO\d{13}|(?:DK|FI|GL|FO)\d{16}|MK\d{17}|(?:AT|EE|KZ|LU|XK)\d{18}|(?:BA|HR|LI|CH|CR)\d{19}|(?:GE|DE|LT|ME|RS)\d{20}|IL\d{21}|(?:AD|CZ|ES|MD|SA)\d{22}|PT\d{23}|(?:BE|IS)\d{24}|(?:FR|MR|MC)\d{25}|(?:AL|DO|LB|PL)\d{26}|(?:AZ|HU)\d{27}|(?:GR|MU)\d{28})$/i,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -62,6 +69,7 @@ abstract class Validators {
       street: /^[A-ZÄÖÜ]([A-Za-zÄÖÜäöüß]+(\-| )?)*[a-zäöüß]$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -70,6 +78,7 @@ abstract class Validators {
       streetnumber: /^[0-9]+[a-zäöü]?$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -78,6 +87,7 @@ abstract class Validators {
       postcode: /^[0-9]{5}$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -86,6 +96,7 @@ abstract class Validators {
       city: /^[A-ZÄÖÜ]([A-Za-zÄÖÜäöüß]+(\-| )?)*[a-zäöüß]$/,
     };
   }
+
   /**
    * @returns RegexObject
    */
@@ -147,6 +158,7 @@ class FormControl {
         return (this._element = document.createElement("input"));
     }
   }
+
   /**
    * @param  {Event} e
    * @returns void
@@ -228,6 +240,9 @@ class FormControl {
     return this._value;
   }
 
+  /**
+   * @returns boolean
+   */
   public get valid(): boolean {
     return this._valid;
   }
@@ -259,6 +274,7 @@ class FormGroup {
   private _name: string;
   private _element!: HTMLFormElement;
   private _onSubmitCallback!: (formData: FormGroupData) => void;
+
   /**
    * @typedef {Object.<string, FormControl>} Controls - e.g.: { email: new FormControl("email", Validators.email)}
    * @param {name} name HTMLAttribute: formGroup="name"
@@ -272,6 +288,7 @@ class FormGroup {
     this.addListeners();
     this.validateFormControls();
   }
+
   /**
    * @returns void
    */
@@ -301,6 +318,7 @@ class FormGroup {
       throw `Couldn't find HTMLFormElement with attribute formGroup="${this._name}"!`;
     this._element = element as HTMLFormElement;
   }
+
   /**
    * @returns void
    */
@@ -330,6 +348,7 @@ class FormGroup {
       } catch (error) {}
     });
   }
+
   /**
    * @param  {(data:FormGroupData)=>void} callbackFn
    * @returns void
