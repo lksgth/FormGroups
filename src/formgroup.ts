@@ -10,7 +10,7 @@ abstract class Validators {
    */
   public static minLength(length: number): RegexObject {
     return {
-      minLength: new RegExp(`^{${length},}$`, "g"),
+      minLength: new RegExp(`^.{${length},}$`),
     };
   }
   /**
@@ -19,7 +19,7 @@ abstract class Validators {
    */
   public static maxLength(length: number): RegexObject {
     return {
-      maxLength: new RegExp(`^{,${length}}$`, "g"),
+      maxLength: new RegExp(`^.{0,${length}}$`),
     };
   }
   /**
@@ -187,7 +187,10 @@ class FormControl {
    */
   public udpateValueAndValidity(): void {
     const entries = Object.entries(this._regexObject);
-    let regexName: string, regex: RegExp, value: string;
+    let regexName: string,
+      regex: RegExp,
+      value: string,
+      valid: boolean = true;
     entries.forEach((entry) => {
       regexName = entry[0];
       regex = entry[1] as RegExp;
@@ -196,11 +199,12 @@ class FormControl {
           value = this._value.replaceAll(" ", "");
           break;
         default:
-          value = this._value;
+          value = this._value.trim();
       }
-      this._valid = regex.test(value);
-      this.updateDOMElement();
+      if (!regex.test(value)) valid = false;
     });
+    this._valid = valid;
+    this.updateDOMElement();
   }
 
   /**
