@@ -1,5 +1,5 @@
 interface RegexObject {
-  [key: string]: RegExp | string;
+  [key: string]: RegExp;
 }
 
 const HTMLElementIdRegex = /^[a-zA-Z][\da-zA-Z-_]$/;
@@ -41,8 +41,7 @@ abstract class Validators {
    */
   public static get email(): RegexObject {
     return {
-      email:
-        /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/,
+      email: /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/,
     };
   }
 
@@ -105,17 +104,7 @@ abstract class Validators {
    */
   public static get password(): RegexObject {
     return {
-      password:
-        /^(?=.*\d)(?=.*[a-zäöüß])(?=.*[A-ZÄÖÜ])[\da-zA-ZÄÖÜäöüß!$%&/\\(){}[\]=?*+~#\-_.:,;^°@]{8,}$/,
-    };
-  }
-  /**
-   * @param  {string} formControlName
-   * @returns RegexObject
-   */
-  public static equals(formControlName: string): RegexObject {
-    return {
-      equalsControlName: formControlName,
+      password: /^(?=.*\d)(?=.*[a-zäöüß])(?=.*[A-ZÄÖÜ])[\da-zA-ZÄÖÜäöüß!$%&/\\(){}[\]=?*+~#\-_.:,;^°@]{8,}$/,
     };
   }
 
@@ -131,6 +120,7 @@ abstract class Validators {
   }
   /**
    * @returns RegexObject
+   * @description Only works with checkbox!
    */
   public static get required(): RegexObject {
     return {
@@ -147,31 +137,35 @@ type supportedElementTypes =
 type supportedElementTags = "input" | "textarea" | "select" | "checkbox";
 
 class FormControl {
-  private _formGroup!: FormGroup;
   private _name: string;
-  private _regexObject: { [key: string]: RegExp | string } = {};
+  private _regexObject: { [key: string]: RegExp } = {};
   private _HTMLElementTag: supportedElementTags = "input";
   private _element!: supportedElementTypes;
   private _options!: HTMLOptionElement[];
-  private _value: string | number | null = null;
+  private _value: string = "";
   private _valid: boolean = true;
-  private _type?: inputType;
-  private _multipleInputs: HTMLInputElement[] = [];
 
   /**
-   * @param  {string} name
-   * @param  {supportedElementTags} HTMLElementTag
-   * @param  {RegexObject|RegexObject[]} validators?
+   * @typedef {Validators} validators
+   * @param  {string} name HTMLAttribute: formControl="name"
+   * @param  {Validators} validators optional. Pass in a Validator (e.g.: Validator.email)
+   * @param  {supportedElementTags} HTMLElementTag optional. Supported tags: input | textarea | select
+   * @description Handles the state of the HTMLElement. Adds CSS classes for visual feedback (invalid: .invalid, valid: .valid)
    */
   constructor(
     name: string,
-    HTMLElementTag: supportedElementTags,
     validators?: RegexObject | RegexObject[],
-    type?: inputType
+    HTMLElementTag?: supportedElementTags
   ) {
     this._name = name;
-    this._type = type;
-    this.addValidators(validators || []);
+    if (validators) {
+      if (Array.isArray(validators))
+        validators.forEach(
+          (validator) =>
+            (this._regexObject = Object.assign(this._regexObject, validator))
+        );
+      else this._regexObject = validators;
+    }
     if (HTMLElementTag) this._HTMLElementTag = HTMLElementTag;
   }
 
@@ -188,21 +182,16 @@ class FormControl {
   }
 
   /**
-   * @private
    * @returns void
    */
   private addListeners(): void {
     switch (this._HTMLElementTag) {
       case "input":
-        if (this._type === "radio" && this._multipleInputs.length > 0) {
-          this._multipleInputs.forEach((inputEl) => {
-            if (inputEl.checked) this._value = inputEl.value;
-          });
-          break;
-        }
       case "textarea":
         this._element.addEventListener("keyup", (e) => this.getInputData(e));
-        this._element.addEventListener("blur", () => this.checkValidity());
+        this._element.addEventListener("blur", () =>
+          this.udpateValueAndValidity()
+        );
         break;
       case "select":
       case "checkbox":
@@ -229,7 +218,7 @@ class FormControl {
    * @param  {RegExp}[]{} regex
    * @returns RegExp
    */
-  private getRegexArr(): [string, RegExp | string][] {
+  private getRegexArr(): [string, RegExp][] {
     return Object.entries(this._regexObject);
   }
 
@@ -251,71 +240,40 @@ class FormControl {
       if (option.selected) options.push(option);
     return options;
   }
-  /**
-   * @returns void
-   */
-  public getDOMValue(): void {
-    switch (this._HTMLElementTag) {
-      default:
-        this._value = this._element.value;
-
-        if (this._type === "number") this._value = Number(this._value);
-
-        if (this._type === "radio" && this._multipleInputs.length > 0)
-          this._multipleInputs.forEach((inputEl) => {
-            if (inputEl.checked) this._value = inputEl.value;
-          });
-    }
-  }
 
   /**
    * @returns void
    */
-  public checkValidity(): void {
+  public udpateValueAndValidity(): void {
     const regexArr = this.getRegexArr();
     let valid: boolean = true;
-
-    this.getDOMValue();
 
     switch (this._HTMLElementTag) {
       case "input":
       case "textarea":
         let value: string;
         regexArr.forEach(([name, regex]) => {
-          value = (this._value as string).trim();
           switch (name) {
             case "iban":
-              value = (this._value as string).replaceAll(" ", "");
-            case "equalsControlName":
-              const controlName = regex;
-              const control = this._formGroup.FormControls.find(
-                (control) => control.name === controlName
-              );
-              if (!control)
-                throw `Cannot find control "${controlName}" for value equals check.`;
-              if (value !== control.value) valid = false;
-              break;
-            case "required":
-              if (!value) valid = false;
+              value = this._value.replaceAll(" ", "");
               break;
             default:
-              if (!(regex as RegExp).test(value)) valid = false;
+              value = this._value.trim();
           }
+          if (!regex.test(value)) valid = false;
         });
         break;
       case "select":
         const requiredOption = this._regexObject.requiredOption;
         if (requiredOption)
           for (const option of this._options)
-            if (
-              (requiredOption as RegExp).test(option.value) &&
-              !option.selected
-            )
+            if (requiredOption.test(option.value) && !option.selected)
               valid = false;
         break;
       case "checkbox":
         const required = this._regexObject.required;
-        if (required && !(this._element as any).checked) valid = false;
+        if (required.test("required") && !(this._element as any).checked)
+          valid = false;
         break;
     }
     this._valid = valid;
@@ -340,7 +298,7 @@ class FormControl {
    * @returns string
    */
   public get value(): string {
-    return this._value as string;
+    return this._value;
   }
 
   /**
@@ -349,17 +307,9 @@ class FormControl {
   public get valid(): boolean {
     return this._valid;
   }
-  /**
-   * @returns inputType
-   */
-  public get type(): inputType | undefined {
-    return this._type;
-  }
 
   /**
-   * @private
    * @param  {supportedElementTypes} element
-   * @description Should not be called!
    */
   public set _DOMElement(element: supportedElementTypes) {
     this._element = element;
@@ -367,104 +317,9 @@ class FormControl {
       const options = this._element.children;
       if (options.length < 1)
         throw `Please add at least one option to select ${this._name}!`;
-      this._options = options as unknown as HTMLOptionElement[];
+      this._options = (options as unknown) as HTMLOptionElement[];
     }
     this.addListeners();
-  }
-
-  /**
-   * @private
-   * @param  {FormGroup} formGroup
-   * @description Should not be called!
-   */
-  public set _FormGroup(formGroup: FormGroup) {
-    this._formGroup = formGroup;
-  }
-  /**
-   * @param  {string} value
-   */
-  public set value(value: string) {
-    this._value = value;
-    this._element.value = value;
-  }
-  /**
-   * @param  {HTMLInputElement[]} inputs
-   */
-  public set radioInputs(inputs: HTMLInputElement[]) {
-    this._multipleInputs = inputs;
-  }
-
-  /**
-   * @param  {RegexObject|RegexObject[]} validators
-   * @returns void
-   * @description Adds one or more Validators to the FormControl.
-   */
-  public addValidators(validators: RegexObject | RegexObject[]): void {
-    if (Array.isArray(validators))
-      validators.forEach((validator) =>
-        Object.assign(this._regexObject, validator)
-      );
-    else Object.assign(this._regexObject, validators);
-  }
-
-  /**
-   * @param  {RegexObject|RegexObject[]} validators
-   * @returns void
-   * @description Removes one or more Validators from the FormControl.
-   */
-  public removeValidators(validators: RegexObject | RegexObject[]): void {
-    if (Array.isArray(validators))
-      validators.forEach(
-        (validator) =>
-          delete this._regexObject[Object.getOwnPropertyNames(validator)[0]]
-      );
-    else delete this._regexObject[Object.getOwnPropertyNames(validators)[0]];
-  }
-}
-
-type inputType = "text" | "radio" | "number" | "password";
-class Input extends FormControl {
-  /**
-   * @param  {string} name
-   * @param  {RegexObject|RegexObject[]} validators?
-   * @param  {inputType="text"} type
-   */
-  constructor(
-    name: string,
-    validators?: RegexObject | RegexObject[],
-    type?: inputType
-  ) {
-    super(name, "input", validators, type);
-  }
-}
-
-class Textarea extends FormControl {
-  /**
-   * @param  {string} name
-   * @param  {RegexObject|RegexObject[]} validators?
-   */
-  constructor(name: string, validators?: RegexObject | RegexObject[]) {
-    super(name, "textarea", validators);
-  }
-}
-
-class Select extends FormControl {
-  /**
-   * @param  {string} name
-   * @param  {RegexObject|RegexObject[]} validators?
-   */
-  constructor(name: string, validators?: RegexObject | RegexObject[]) {
-    super(name, "select", validators);
-  }
-}
-
-class Checkbox extends FormControl {
-  /**
-   * @param  {string} name
-   * @param  {RegexObject|RegexObject[]} validators?
-   */
-  constructor(name: string, validators?: RegexObject | RegexObject[]) {
-    super(name, "checkbox", validators);
   }
 }
 
@@ -480,7 +335,8 @@ interface FormGroupData {
 }
 
 class FormGroup {
-  private _supportedElementTags = ["input", "textarea", "select", "checkbox"];
+  protected supportedElementTags = ["input", "textarea", "select"];
+
   private _controls: Controls;
   private _name: string;
   private _element!: HTMLFormElement;
@@ -510,29 +366,15 @@ class FormGroup {
     let tag: supportedElementTags;
     this.FormControls.forEach((control) => {
       tag = control.HTMLElementTag;
-      if (!this._supportedElementTags.includes(tag))
+      if (!this.supportedElementTags.includes(tag))
         throw "Unsupported HTMLElement!";
 
-      if (tag === "checkbox") tag = "input";
-
       element = document.querySelector(
-        `form[formGroup="${this._name}"] ${tag}[formControl="${control.name}"]`
+        `${tag}[formControl="${control.name}"]`
       ) as HTMLElement;
       if (!element)
         throw `Couldn't find <${tag}> with formControl="${control.name}"!`;
-
-      // multiple elements on radio
-      if (control.type === "radio") {
-        const radioName = (element as HTMLInputElement).name;
-        const radioElements = document.querySelectorAll(
-          `form[formGroup="${this._name}"] input[name="${radioName}"]`
-        );
-        if (radioElements)
-          control.radioInputs = radioElements as unknown as HTMLInputElement[];
-      }
-
       control._DOMElement = element as any;
-      control._FormGroup = this;
     });
   }
 
@@ -556,7 +398,7 @@ class FormGroup {
     this._invalidControls = {};
     controlNames.forEach((name) => {
       control = this._controls[name];
-      control.checkValidity();
+      control.udpateValueAndValidity();
       if (!control.valid) this._invalidControls[name] = control;
       data[name] = this._controls[name].value;
     });
@@ -598,20 +440,11 @@ class FormGroup {
   }
 
   /**
-   * @returns Array<Input | Textarea | Select | Checkbox>
+   * @returns FormControl
    */
-  public get FormControls(): Array<Input | Textarea | Select | Checkbox> {
+  public get FormControls(): FormControl[] {
     return Object.entries(this._controls).map(
-      (entry) => entry[1] as Input | Textarea | Select | Checkbox
+      (entry) => (entry[1] as unknown) as FormControl
     );
-  }
-  /**
-   * @param  {string} name
-   * @returns Input
-   */
-  public getFormControlByName(
-    name: string
-  ): Input | Textarea | Select | Checkbox | undefined {
-    return this.FormControls.find((control) => control.name === name);
   }
 }
